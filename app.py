@@ -131,23 +131,24 @@ def main() -> None:
                 help="卖出饰品总收入"
             )
             earn = (
-                st.session_state.inventory.calc_price()
+                st.session_state.inventory.calc_price() * 0.975 * 0.99
                 + st.session_state.inventory.sell_price()
                 - st.session_state.inventory.total_cost()
             )
             col2[0].metric("盈利(Buff计)", value=f"{earn:.2f} 元",
-                           help="总套现 + 库存价值 - 总投资额")
+                           help="总套现 + 库存价值×0.975×0.99 - 总投资额")
             col2[1].metric(
                 "总收益率",
                 value=f"{0 if st.session_state.inventory.total_cost()==0 else earn/st.session_state.inventory.total_cost()*100:.2f} %",
-                help="盈利 / 总投资额 * 100"            
+                help="盈利 / 总投资额 × 100"            
             )
             yyyp_earn = (
-                st.session_state.inventory.calc_yyyp_price()
+                st.session_state.inventory.calc_yyyp_price() * 0.99
                 + st.session_state.inventory.sell_price()
                 - st.session_state.inventory.total_cost()
             )
-            col2[2].metric("盈利(悠悠有品计)", value=f"{yyyp_earn:.2f} 元")
+            col2[2].metric("盈利(悠悠有品计)", value=f"{yyyp_earn:.2f} 元",
+                           help="总套现 + 库存价值×0.99 - 总投资额")
             col2[3].metric(
                 "总收益率",
                 value=f"{0 if st.session_state.inventory.total_cost()==0 else yyyp_earn/st.session_state.inventory.total_cost()*100:.2f} %",
@@ -155,23 +156,23 @@ def main() -> None:
             )
             col3[0].metric(
                 "持有饰品收益(Buff计)",
-                value=f"{st.session_state.inventory.calc_price() - st.session_state.inventory.total_cost_in_inventory():.2f} 元",
-                help="库存价值 - 库存内和已租出饰品总花费"
+                value=f"{st.session_state.inventory.calc_buff_earn():.2f} 元",
+                help="(Buff价格 × 0.975 × 0.99) - 购入成本"
             )
             col3[1].metric(
                 "持有饰品收益率(Buff计)",
-                value=f"{0 if st.session_state.inventory.total_cost()==0 else 100 * (st.session_state.inventory.calc_price() - st.session_state.inventory.total_cost_in_inventory())/st.session_state.inventory.total_cost_in_inventory():.2f} %",
-                help="( 持有饰品收益 - 库存内和已租出饰品总花费 ) * 100"
+                value=f"{st.session_state.inventory.calc_buff_earn_rate():.2f} %",
+                help="(Buff收益 / 总持有成本) × 100"
             )
             col3[2].metric(
                 "持有饰品收益(悠悠有品计)",
-                value=f"{0 if st.session_state.inventory.total_cost()==0 else st.session_state.inventory.calc_yyyp_price() - st.session_state.inventory.total_cost_in_inventory():.2f} 元",
-                help="库存价值 - 库存内和已租出饰品总花费"
+                value=f"{st.session_state.inventory.calc_youpin_earn():.2f} 元",
+                help="(有品价格 * 0.99) - 购入成本"
             )
             col3[3].metric(
                 "持有饰品收益率(悠悠有品计)",
-                value=f"{0 if st.session_state.inventory.total_cost()==0 else 100 * (st.session_state.inventory.calc_yyyp_price() - st.session_state.inventory.total_cost_in_inventory())/st.session_state.inventory.total_cost_in_inventory():.2f} %",
-                help="( 持有饰品收益 - 库存内和已租出饰品总花费 ) * 100"
+                value=f"{st.session_state.inventory.calc_youpin_earn_rate():.2f} %",
+                help="(有品收益 / 总持有成本) × 100"
             )
 
             # col[0].metric(
@@ -241,8 +242,9 @@ def main() -> None:
             with col4[1]:
                 fig2 = Pie(init_opts=opts.InitOpts(theme=ThemeType.MACARONS)).add(
                     "盈利资金组成",
-                    [('库存增值',st.session_state.inventory.calc_price()
-                        - st.session_state.inventory.total_cost_in_inventory(),), ('卖出收益',st.session_state.inventory.sell_earn(),)],
+                    [('库存增值(Buff)',st.session_state.inventory.calc_buff_earn(),), 
+                     ('库存增值(有品)',st.session_state.inventory.calc_youpin_earn(),),
+                     ('卖出收益',st.session_state.inventory.sell_earn(),)],
                     radius=["30%", "75%"],
                 )
                 streamlit_echarts.st_pyecharts(fig2, height="400px", key="fig2")
@@ -326,7 +328,7 @@ def main() -> None:
 
             data_track.columns = [
                 'Buff id',
-                '有品 id',
+                '有品 id', 
                 '名称',
                 '购入花费(元)',
                 'Buff 价格',
@@ -339,8 +341,10 @@ def main() -> None:
                 '长租价格(元)',
                 '押金(元)',
                 '租售比',
-                '理论目前收益(元)',
-                '理论目前收益率(%)',
+                '理论目前收益(元)',      # 有品收益
+                '理论目前收益率(%)',    # 有品收益率
+                'Buff当前收益(元)',     # Buff收益
+                'Buff当前收益率(%)',   # Buff收益率
                 '租金比例(%)',
                 '押金比例(%)',
                 '年化短租比例(%)',

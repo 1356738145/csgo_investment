@@ -152,10 +152,14 @@ class Goods:
                 "LongLeaseUnitPrice": self.long_lease_unit_price,
                 "Deposit": self.deposit,
                 "RentSaleRatio": self.on_lease_count / self.on_sale_count,  # 目前租售比
-                "TheoreticalCurrentEarnings": self.price - self.cost,  # 理论目前收益
-                "TheoreticalCurrentEarningsRate": (self.price - self.cost)
+                "TheoreticalCurrentEarnings": self.youpin_price*0.99 - self.cost,  # 理论目前收益（有品）
+                "TheoreticalCurrentEarningsRate": (self.youpin_price*0.99 - self.cost)
                 / self.cost
-                * 100,  # 理论目前收益率
+                * 100 if self.cost !=0 else 0,  # 理论目前收益率（有品）
+                "BuffCurrentEarnings": self.price*0.975*0.99 - self.cost,  # Buff当前收益
+                "BuffCurrentEarningsRate": (self.price*0.975*0.99 - self.cost)
+                / self.cost
+                * 100 if self.cost !=0 else 0,  # 理论目前收益率（Buff）
                 "LeaseRatio": self.lease_unit_price / self.price * 100,  # 租金比例
                 "DepositRatio": self.deposit / self.price * 100,  # 押金比例
                 "AnnualizedShortTermLeaseRatio": 192
@@ -173,14 +177,23 @@ class Goods:
 
 class Inventory:
     """库存管理"""
-
+    
     def __init__(self, path) -> None:
         """选择一个库存并启动该库存"""
         self.path = path
+        self.index_counter = 0  # 自增计数器
+        self.__data = {}
+        
         if os.path.exists(path):
-            self.__data = pickle.load(open(path, "rb"))
-        else:
-            self.__data = {}
+            saved_data = pickle.load(open(path, "rb"))
+            # 加载已保存的数据和计数器
+            if isinstance(saved_data, tuple) and len(saved_data) == 2:
+                self.__data = saved_data[0]
+                self.index_counter = saved_data[1]
+            else:  # 兼容旧版本数据格式
+                self.__data = saved_data
+                if self.__data:
+                    self.index_counter = max(int(k) for k in self.__data.keys()) + 1
 
     def __call__(self):
         return self.__data
@@ -190,8 +203,9 @@ class Inventory:
 
     def add(self, good: Goods):
         if good.__class__ == Goods:
-            good.index = len(self())
+            good.index = self.index_counter  # 使用自增计数器
             self.__data[good.index] = good
+            self.index_counter += 1  # 计数器递增
         else:
             raise TypeError("输入类型错误")
 
@@ -220,20 +234,26 @@ class Inventory:
     def calc_buff_earn(self):
         return sum(
             [
-                self()[good].price - self()[good].cost
+                self()[good].price*0.975*0.99 - self()[good].cost
                 for good in self()
-                if (self()[good].cost != 0 & self()[good].status == 0) or self()[good].status == 1
+                if (self()[good].cost != 0 and self()[good].status == 0) or self()[good].status == 1
             ]
         )
 
     def calc_youpin_earn(self):
         return sum(
             [
-                self()[good].youpin_price - self()[good].cost
+                self()[good].youpin_price*0.99 - self()[good].cost  # 仅扣除1%手续费
                 for good in self()
-                if (self()[good].cost != 0 & self()[good].status == 0) or self()[good].status == 1
+                if (self()[good].cost != 0 and self()[good].status == 0) or self()[good].status == 1
             ]
         )
+
+    def calc_buff_earn_rate(self):
+        return self.calc_buff_earn() / self.total_cost_in_inventory() * 100
+
+    def calc_youpin_earn_rate(self):
+        return self.calc_youpin_earn() / self.total_cost_in_inventory() * 100
 
     def calc_buff_earn_rate(self):
         return self.calc_buff_earn() / self.total_cost_in_inventory() * 100
@@ -271,7 +291,25 @@ class Inventory:
     def sell_price(self):
         return sum(
             [self()[good].sell_price for good in self() if self()[good].status == 2]
-        ) 
+        )
+
+    def calc_buff_earn(self):
+        return sum(
+            [
+                self()[good].price*0.975*0.99 - self()[good].cost
+                for good in self()
+                if (self()[good].cost != 0 and self()[good].status == 0) or self()[good].status == 1
+            ]
+        )
+
+    def calc_youpin_earn(self):
+        return sum(
+            [
+                self()[good].youpin_price*0.99 - self()[good].cost
+                for good in self()
+                if (self()[good].cost != 0 and self()[good].status == 0) or self()[good].status == 1
+            ]
+        )
 
 
 if __name__ == "__main__":
